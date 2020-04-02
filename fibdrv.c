@@ -46,7 +46,7 @@ static inline void addBigN(struct BigN *out, struct BigN x, struct BigN y)
 
 void BigN_to_int(struct BigN *res, struct BigN x)
 {
-    unsigned long long max10 = 10000000000000000000;
+    unsigned long long max10 = 10000000000000000000U;
     unsigned long long idx = x.upper;
     unsigned long long max_first = ULONG_MAX / max10;
     unsigned long long max_mod = ULONG_MAX - max_first * max10;
