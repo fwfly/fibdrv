@@ -4,6 +4,7 @@
 #include <linux/init.h>
 #include <linux/kdev_t.h>
 #include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 
@@ -17,26 +18,88 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 92
+#define MAX_LENGTH 500
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
 static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 
+struct BigN {
+    unsigned long long lower, upper;
+};
+
+static inline void addBigN(struct BigN *out, struct BigN x, struct BigN y)
+{
+    out->upper = x.upper + y.upper;
+    // printk("Upper  %hu = %hu + %hu\n",out->upper, x.upper, y.upper);
+    // printk("%hu vs %hu", y.lower, ~x.lower);
+    unsigned long long lower = ~x.lower;
+    if (y.lower > lower) {
+        // printk("upper++\n");
+        out->upper++;
+    }
+    out->lower = x.lower + y.lower;
+    // printk("%hu,  %hu = %hu + %hu\n",out->upper, out->lower, x.lower,
+    // y.lower);
+}
+
+void BigN_to_int(struct BigN *res, struct BigN x)
+{
+    unsigned long long max10 = 10000000000000000000;
+    unsigned long long idx = x.upper;
+    unsigned long long max_first = ULONG_MAX / max10;
+    unsigned long long max_mod = ULONG_MAX - max_first * max10;
+
+    res->lower = x.lower;
+    unsigned long long x_first = x.lower / max10;
+    unsigned long long x_mod = x.lower - x_first * max10;
+
+    while (idx) {
+        // Add mod
+        x_mod = x_mod + max_mod;
+        int carry = 0;
+        // count if it needs carry over.
+        if (x_mod > max10) {
+            carry = 1;
+            x_mod = x_mod - max10;
+        }
+        res->lower = x_mod;
+        // Add x_first , max_first, carry to find upper_dec
+        x_first = x_first + max_first + carry;
+        res->upper = x_first;
+        idx--;
+    }
+}
+
 static long long fib_sequence(long long k)
 {
     /* FIXME: use clz/ctz and fast algorithms to speed up */
-    long long f[k + 2];
+    struct BigN f[k + 2];
 
-    f[0] = 0;
-    f[1] = 1;
+    f[0].upper = 0;
+    f[0].lower = 0;
+    f[1].upper = 0;
+    f[1].lower = 1;
 
     for (int i = 2; i <= k; i++) {
-        f[i] = f[i - 1] + f[i - 2];
+        addBigN(&f[i], f[i - 1], f[i - 2]);
     }
+    /*if (!f[k].upper)
+        printk("%llu : %llu\n", k, f[k].lower);
+    else
+        printk("%llu : %llu %llu\n", k, f[k].upper, f[k].lower);*/
+    struct BigN bigint;
+    bigint.upper = 0;
+    bigint.lower = 0;
 
-    return f[k];
+    BigN_to_int(&bigint, f[k]);
+
+    if (!bigint.upper)
+        printk("%llu : %llu\n", k, bigint.lower);
+    else
+        printk("%llu : %llu %llu\n", k, bigint.upper, bigint.lower);
+    return f[k].lower;
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -114,6 +177,7 @@ static int __init init_fib_dev(void)
     // This will dynamically allocate the major number
     rc = alloc_chrdev_region(&fib_dev, 0, 1, DEV_FIBONACCI_NAME);
 
+    printk("init fib-------\n");
     if (rc < 0) {
         printk(KERN_ALERT
                "Failed to register the fibonacci char device. rc = %i",

@@ -27,8 +27,8 @@ int main()
     }
 
     for (int i = 0; i <= offset; i++) {
-        lseek(fd, i, SEEK_SET);
-        sz = read(fd, buf, 1);
+        int new_pos = lseek(fd, i, SEEK_SET);
+        sz = read(fd, buf, 1000);
         printf("Reading from " FIB_DEV
                " at offset %d, returned the sequence "
                "%lld.\n",
