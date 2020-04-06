@@ -32,16 +32,11 @@ struct BigN {
 static inline void addBigN(struct BigN *out, struct BigN x, struct BigN y)
 {
     out->upper = x.upper + y.upper;
-    // printk("Upper  %hu = %hu + %hu\n",out->upper, x.upper, y.upper);
-    // printk("%hu vs %hu", y.lower, ~x.lower);
     unsigned long long lower = ~x.lower;
     if (y.lower > lower) {
-        // printk("upper++\n");
         out->upper++;
     }
     out->lower = x.lower + y.lower;
-    // printk("%hu,  %hu = %hu + %hu\n",out->upper, out->lower, x.lower,
-    // y.lower);
 }
 
 void BigN_to_int(struct BigN *res, struct BigN x)
@@ -85,10 +80,6 @@ static long long fib_sequence(long long k)
     for (int i = 2; i <= k; i++) {
         addBigN(&f[i], f[i - 1], f[i - 2]);
     }
-    /*if (!f[k].upper)
-        printk("%llu : %llu\n", k, f[k].lower);
-    else
-        printk("%llu : %llu %llu\n", k, f[k].upper, f[k].lower);*/
     struct BigN bigint;
     bigint.upper = 0;
     bigint.lower = 0;
