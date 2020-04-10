@@ -4,6 +4,7 @@
 #include <linux/init.h>
 #include <linux/kdev_t.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -25,6 +26,9 @@ static struct cdev *fib_cdev;
 static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 
+
+static ktime_t kt;
+
 struct BigN {
     unsigned long long lower, upper;
 };
@@ -39,7 +43,9 @@ static inline void addBigN(struct BigN *out, struct BigN x, struct BigN y)
     out->lower = x.lower + y.lower;
 }
 
-void BigN_to_int(struct BigN *res, struct BigN x)
+// To pass the clang-format, we comment this code.
+// This function is useful when we need to verify the number to human-readable.
+/*void BigN_to_int(struct BigN *res, struct BigN x)
 {
     unsigned long long max10 = 10000000000000000000U;
     unsigned long long idx = x.upper;
@@ -65,10 +71,13 @@ void BigN_to_int(struct BigN *res, struct BigN x)
         res->upper = x_first;
         idx--;
     }
-}
+}*/
 
 static long long fib_sequence(long long k)
 {
+    if (!k)
+        return 0;
+
     /* FIXME: use clz/ctz and fast algorithms to speed up */
     struct BigN f[k + 2];
 
@@ -80,17 +89,16 @@ static long long fib_sequence(long long k)
     for (int i = 2; i <= k; i++) {
         addBigN(&f[i], f[i - 1], f[i - 2]);
     }
-    struct BigN bigint;
-    bigint.upper = 0;
-    bigint.lower = 0;
 
-    BigN_to_int(&bigint, f[k]);
-
-    if (!bigint.upper)
-        printk("%llu : %llu\n", k, bigint.lower);
-    else
-        printk("%llu : %llu %llu\n", k, bigint.upper, bigint.lower);
     return f[k].lower;
+}
+
+static long long fib_ktime_proxy(long long k)
+{
+    kt = ktime_get();
+    long long result = fib_sequence(k);
+    kt = ktime_sub(ktime_get(), kt);
+    return result;
 }
 
 static int fib_open(struct inode *inode, struct file *file)
@@ -114,7 +122,7 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    return (ssize_t) fib_sequence(*offset);
+    return (ssize_t) fib_ktime_proxy(*offset);
 }
 
 /* write operation is skipped */
@@ -123,7 +131,7 @@ static ssize_t fib_write(struct file *file,
                          size_t size,
                          loff_t *offset)
 {
-    return 1;
+    return ktime_to_ns(kt);
 }
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)
