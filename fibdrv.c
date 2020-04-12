@@ -190,8 +190,7 @@ static long long fast_fib_sequence(long long k)
     if (!k)
         return 0;
 
-    /* FIXME: use clz/ctz and fast algorithms to speed up */
-/*    struct BigN f[k + 2];
+    struct BigN f[k + 2];
 
     f[0].upper = 0;
     f[0].lower = 0;
