@@ -58,7 +58,7 @@ static inline void subBigN(struct BigN *out, struct BigN x, struct BigN y)
 }
 
 /* Multi is loop addBigN y times */
-static inline void multiBigN(struct BigN *out, struct BigN x, struct BigN y)
+/*static inline void multiBigN(struct BigN *out, struct BigN x, struct BigN y)
 {
 
     out->upper = 0;
@@ -81,6 +81,37 @@ static inline void multiBigN(struct BigN *out, struct BigN x, struct BigN y)
         }
     }
     // printk("Mult %lld = %lld * %lld", out->lower, tmpx, tmpy);
+}*/
+
+
+static inline void multiBigN64to128(struct BigN *out,
+                                    unsigned long long x,
+                                    unsigned long long y)
+{
+    uint32_t a = x & 0xFFFFFFFF;
+    uint32_t c = x >> 32;
+    uint32_t b = y & 0xFFFFFFFF;
+    uint32_t d = y >> 32;
+    uint64_t ab = (uint64_t) a * b;
+    uint64_t bc = (uint64_t) b * c;
+    uint64_t ad = (uint64_t) a * d;
+    uint64_t cd = (uint64_t) c * d;
+    uint64_t low = ab + (bc << 32);
+    uint64_t high = cd + (bc >> 32) + (ad >> 32) + (low < ab);
+    low += (ad << 32);
+    high += (low < (ad << 32));
+    out->lower = low;
+    out->upper = high;
+}
+
+static inline void multiBigN(struct BigN *out, struct BigN x, struct BigN y)
+{
+    out->upper = 0;
+    out->lower = 0;
+    unsigned long long h = x.lower * y.upper + x.upper * y.lower;
+    multiBigN64to128(out, x.lower, y.lower);
+    x.upper += h;
+    out->upper = x.upper;
 }
 
 static inline void assignBigN(struct BigN *x, struct BigN y)
@@ -148,7 +179,6 @@ static long long fast_fib_sequence(long long k)
     int numbits = num_bits(k);
     int count = numbits;
 
-    // printk("%lld : %d\n", k, count);
     while (count) {
         /* t1 = a*(2*b - a) */
         multiBigN(&t1, b, b2);
