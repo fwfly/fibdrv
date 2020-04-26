@@ -207,8 +207,8 @@ static long long fast_fib_sequence(long long k)
     if (res.upper)
         printk("%llu: %llu %llu\n", k, res.upper, res.lower);
     else
-        printk("%llu: %llu\n", k, res.lower);
-    return a.lower;*/
+        printk("%llu: %llu\n", k, res.lower); */
+    return a.lower;
 }
 
 
